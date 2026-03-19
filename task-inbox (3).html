@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>タスク投げ込み</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f7f6f2; --surface: #ffffff; --surface2: #f0efe8; --border: #e2e0d8;
+    --accent: #4f46e5; --accent-light: #ede9fe;
+    --red: #dc2626; --red-light: #fef2f2;
+    --amber: #b45309; --amber-light: #fffbeb;
+    --green: #15803d; --green-light: #f0fdf4;
+    --text: #1c1c1e; --muted: #6b7280;
+    --font: 'Noto Sans JP', sans-serif; --mono: 'DM Mono', monospace;
+    --r: 12px; --shadow: 0 1px 3px rgba(0,0,0,.08);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font); min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 32px 16px 80px; }
+  header { width: 100%; max-width: 620px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+  .app-title { font-size: 16px; font-weight: 700; color: var(--text); }
+  .app-title span { color: var(--accent); }
+  .header-right { display: flex; align-items: center; gap: 10px; }
+  .status-pill { display: flex; align-items: center; gap: 6px; background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 4px 12px; font-size: 12px; color: var(--muted); }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--border); transition: background .3s; }
+  .dot.ok { background: #22c55e; box-shadow: 0 0 0 3px #dcfce7; }
+  .dot.err { background: var(--red); }
+  .settings-wrap { width: 100%; max-width: 620px; margin-bottom: 16px; overflow: hidden; max-height: 0; transition: max-height .35s ease; }
+  .settings-wrap.open { max-height: 500px; }
+  .settings-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 20px; box-shadow: var(--shadow); }
+  .settings-title { font-size: 12px; font-family: var(--mono); color: var(--accent); letter-spacing: .08em; margin-bottom: 16px; }
+  .field { margin-bottom: 12px; }
+  .field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 5px; font-weight: 500; }
+  .field input { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: var(--mono); font-size: 13px; padding: 9px 12px; outline: none; transition: border-color .2s; }
+  .field input:focus { border-color: var(--accent); }
+  .settings-footer { display: flex; align-items: center; gap: 12px; margin-top: 4px; }
+  .btn-primary { background: var(--accent); color: #fff; border: none; border-radius: 8px; padding: 9px 18px; font-family: var(--font); font-size: 13px; font-weight: 500; cursor: pointer; transition: opacity .15s; }
+  .btn-primary:hover { opacity: .88; }
+  .cfg-msg { font-size: 12px; color: var(--muted); }
+  .cfg-msg.ok { color: var(--green); }
+  .cfg-msg.err { color: var(--red); }
+  .btn-settings { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; color: var(--muted); font-size: 12px; font-family: var(--font); padding: 5px 12px; cursor: pointer; }
+  .btn-settings:hover { color: var(--text); border-color: var(--accent); }
+  .add-card { width: 100%; max-width: 620px; background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--r); padding: 18px 20px 16px; box-shadow: var(--shadow); margin-bottom: 14px; transition: border-color .2s; }
+  .add-card:focus-within { border-color: var(--accent); }
+  .task-input { width: 100%; background: none; border: none; color: var(--text); font-family: var(--font); font-size: 15px; font-weight: 500; outline: none; margin-bottom: 14px; caret-color: var(--accent); }
+  .task-input::placeholder { color: #bbb; font-weight: 400; }
+  .controls { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .pri-btn { border: 1.5px solid var(--border); border-radius: 20px; background: var(--surface2); color: var(--muted); font-size: 12px; font-family: var(--font); font-weight: 500; padding: 5px 13px; cursor: pointer; transition: all .15s; white-space: nowrap; }
+  .pri-btn.sel-red { background: var(--red-light); border-color: var(--red); color: var(--red); }
+  .pri-btn.sel-amber { background: var(--amber-light); border-color: var(--amber); color: var(--amber); }
+  .pri-btn.sel-green { background: var(--green-light); border-color: var(--green); color: var(--green); }
+  .cat-sel { border: 1.5px solid var(--border); border-radius: 20px; background: var(--surface2); color: var(--muted); font-family: var(--font); font-size: 12px; padding: 5px 10px; cursor: pointer; outline: none; max-width: 130px; }
+  .date-inp { border: 1.5px solid var(--border); border-radius: 20px; background: var(--surface2); color: var(--muted); font-family: var(--mono); font-size: 11px; padding: 5px 10px; cursor: pointer; outline: none; width: 130px; }
+  .flex1 { flex: 1; }
+  .btn-add { background: var(--accent); color: #fff; border: none; border-radius: 8px; padding: 7px 18px; font-family: var(--font); font-size: 13px; font-weight: 500; cursor: pointer; transition: opacity .15s; white-space: nowrap; }
+  .btn-add:hover { opacity: .88; }
+  .filters { width: 100%; max-width: 620px; display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+  .fil-btn { border: 1px solid var(--border); border-radius: 20px; background: var(--surface); color: var(--muted); font-size: 12px; font-family: var(--font); padding: 5px 14px; cursor: pointer; transition: all .15s; }
+  .fil-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .count-label { width: 100%; max-width: 620px; font-size: 11px; font-family: var(--mono); color: var(--muted); margin-bottom: 8px; padding-left: 2px; }
+  .task-list { width: 100%; max-width: 620px; display: flex; flex-direction: column; gap: 6px; }
+  .task-item { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 13px 16px; display: flex; align-items: flex-start; gap: 12px; box-shadow: var(--shadow); transition: opacity .3s; animation: slideIn .18s ease; }
+  .task-item:hover .task-del { opacity: 1; }
+  .task-item.done { opacity: .4; }
+  @keyframes slideIn { from { opacity:0; transform:translateY(-5px); } to { opacity:1; transform:translateY(0); } }
+  .check-btn { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--border); background: none; cursor: pointer; flex-shrink: 0; margin-top: 2px; display: flex; align-items: center; justify-content: center; transition: all .15s; color: transparent; font-size: 11px; }
+  .check-btn:hover { border-color: var(--green); color: var(--green); background: var(--green-light); }
+  .task-item.done .check-btn { background: var(--green); border-color: var(--green); color: #fff; }
+  .task-body { flex: 1; min-width: 0; }
+  .task-name { font-size: 14px; font-weight: 500; line-height: 1.4; margin-bottom: 7px; word-break: break-all; }
+  .task-item.done .task-name { text-decoration: line-through; color: var(--muted); }
+  .task-meta { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .badge { font-size: 11px; font-weight: 500; border-radius: 5px; padding: 2px 8px; white-space: nowrap; }
+  .b-red { background: var(--red-light); color: var(--red); }
+  .b-amber { background: var(--amber-light); color: var(--amber); }
+  .b-green { background: var(--green-light); color: var(--green); }
+  .b-gray { background: var(--surface2); color: var(--muted); }
+  .task-del { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 15px; padding: 1px 4px; border-radius: 4px; opacity: 0; transition: color .15s, opacity .15s; line-height: 1; flex-shrink: 0; }
+  .task-del:hover { color: var(--red); }
+  .empty { text-align: center; color: var(--muted); font-size: 13px; padding: 48px 0; font-family: var(--mono); }
+  .toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%); background: var(--text); color: #fff; border-radius: 8px; padding: 10px 20px; font-size: 13px; opacity: 0; pointer-events: none; transition: opacity .2s; white-space: nowrap; z-index: 999; }
+  .toast.show { opacity: 1; }
+  .toast.ok { background: var(--green); }
+  .toast.err { background: var(--red); }
+  @media (max-width: 480px) { .task-del { opacity: 1; } }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="app-title">タスク<span>投げ込み</span></div>
+  <div class="header-right">
+    <div class="status-pill">
+      <div class="dot" id="dot"></div>
+      <span id="status-text">未接続</span>
+    </div>
+    <button class="btn-settings" onclick="toggleSettings()">⚙ 設定</button>
+  </div>
+</header>
+
+<div class="settings-wrap" id="settings-wrap">
+  <div class="settings-card">
+    <div class="settings-title">NOTION 接続設定</div>
+    <div class="field">
+      <label>Notion Integration Token（ntn_ または secret_ から始まる）</label>
+      <input type="password" id="cfg-token" placeholder="ntn_xxxxxxxxxxxx">
+    </div>
+    <div class="field">
+      <label>タスクDB の Database ID（32文字だけ。?v=以降は不要）</label>
+      <input type="text" id="cfg-db" placeholder="8072bda8664041ff9608d0a32f41d4d1">
+    </div>
+    <div class="field">
+      <label>カテゴリ（カンマ区切りで自由に追加できる）</label>
+      <input type="text" id="cfg-cats" placeholder="GE, ANUN, 由貴さん, 将吾さん, 鳥海さん, 個人">
+    </div>
+    <div class="settings-footer">
+      <button class="btn-primary" onclick="saveAndTest()">保存して接続テスト</button>
+      <span class="cfg-msg" id="cfg-msg"></span>
+    </div>
+  </div>
+</div>
+
+<div class="add-card">
+  <input class="task-input" id="task-input" placeholder="タスクを入力して Enter で追加" autocomplete="off">
+  <div class="controls">
+    <button class="pri-btn sel-red" id="p-red" onclick="setPri('🔴')">🔴 今日〜明日</button>
+    <button class="pri-btn" id="p-amber" onclick="setPri('🟡')">🟡 今週中</button>
+    <button class="pri-btn" id="p-green" onclick="setPri('🟢')">🟢 今月中</button>
+    <select class="cat-sel" id="cat-sel"><option value="">カテゴリ</option></select>
+    <input type="date" class="date-inp" id="date-inp">
+    <div class="flex1"></div>
+    <button class="btn-add" onclick="addTask()">追加 ↑</button>
+  </div>
+</div>
+
+<div class="filters">
+  <button class="fil-btn active" onclick="setFilter('active',this)">未完了</button>
+  <button class="fil-btn" onclick="setFilter('🔴',this)">🔴 今日〜明日</button>
+  <button class="fil-btn" onclick="setFilter('🟡',this)">🟡 今週中</button>
+  <button class="fil-btn" onclick="setFilter('🟢',this)">🟢 今月中</button>
+  <button class="fil-btn" onclick="setFilter('done',this)">✓ 完了</button>
+</div>
+
+<div class="count-label" id="count-label"></div>
+<div class="task-list" id="task-list"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+  // ★ CloudflareワーカーのURL（りえこさん専用）
+  const PROXY = 'https://sparkling-paper-76f1.rieko0410iijima.workers.dev/notion';
+
+  let cfg = { token:'', db:'', cats:[] };
+  let tasks = [];
+  let currentPri = '🔴';
+  let currentFilter = 'active';
+
+  function saveCfg() { localStorage.setItem('ti-cfg', JSON.stringify(cfg)); }
+  function loadCfg() {
+    try { const s=localStorage.getItem('ti-cfg'); if(s) cfg={...cfg,...JSON.parse(s)}; } catch(e){}
+    document.getElementById('cfg-token').value = cfg.token||'';
+    document.getElementById('cfg-db').value = cfg.db||'';
+    document.getElementById('cfg-cats').value = (cfg.cats||[]).join(', ');
+    buildCats();
+  }
+  function saveTasks() { localStorage.setItem('ti-tasks', JSON.stringify(tasks)); }
+  function loadTasks() { try { tasks=JSON.parse(localStorage.getItem('ti-tasks')||'[]'); } catch(e){ tasks=[]; } }
+
+  function fmtDbId(id) {
+    const c=id.replace(/-/g,'');
+    if(c.length!==32) return id;
+    return c.replace(/(.{8})(.{4})(.{4})(.{4})(.{12})/,'$1-$2-$3-$4-$5');
+  }
+
+  async function notionFetch(path, method, body) {
+    const res = await fetch(PROXY + path, {
+      method,
+      headers: {
+        'Authorization': 'Bearer ' + cfg.token,
+        'Notion-Version': '2022-06-28',
+        'Content-Type': 'application/json'
+      },
+      body: body ? JSON.stringify(body) : undefined
+    });
+    return res.json();
+  }
+
+  async function saveAndTest() {
+    cfg.token = document.getElementById('cfg-token').value.trim();
+    cfg.db = document.getElementById('cfg-db').value.trim().replace(/-/g,'').split('?')[0];
+    cfg.cats = document.getElementById('cfg-cats').value.split(',').map(s=>s.trim()).filter(Boolean);
+    saveCfg(); buildCats();
+    setMsg('接続テスト中...','');
+    try {
+      const res = await notionFetch('/databases/'+fmtDbId(cfg.db), 'GET', null);
+      if(res.object==='database') {
+        setStatus('ok'); setMsg('✓ 接続OK！','ok');
+        document.getElementById('settings-wrap').classList.remove('open');
+        await fetchTasks();
+      } else {
+        setStatus('err'); setMsg('エラー: '+(res.message||'接続できませんでした'),'err');
+      }
+    } catch(e) { setStatus('err'); setMsg('エラー: '+e.message,'err'); }
+  }
+
+  async function fetchTasks() {
+    if(!cfg.token||!cfg.db) return;
+    try {
+      const res = await notionFetch('/databases/'+fmtDbId(cfg.db)+'/query','POST',{
+        page_size:100, sorts:[{property:'優先度',direction:'ascending'}]
+      });
+      if(!res.results) return;
+      const pending = tasks.filter(t=>t.syncStatus==='pending');
+      const notionTasks = res.results.map(page=>{
+        const p=page.properties;
+        const name=p['タスク名']?.title?.[0]?.text?.content||p['名前']?.title?.[0]?.text?.content||'(名称なし)';
+        const done=(p['ステータス']?.status?.name||'')==='完了';
+        const pRaw=p['優先度']?.select?.name||'';
+        const pri=pRaw.includes('🔴')?'🔴':pRaw.includes('🟡')?'🟡':pRaw.includes('🟢')?'🟢':'🟡';
+        const deadline=p['期限']?.date?.start||p['期日']?.date?.start||'';
+        return {id:page.id,name,priority:pri,category:'',deadline,done,syncStatus:'synced',notionId:page.id};
+      });
+      tasks=[...notionTasks,...pending.filter(p=>!notionTasks.find(n=>n.id===p.id))];
+      saveTasks(); render();
+    } catch(e) { console.error(e); }
+  }
+
+  async function addTask() {
+    const inp=document.getElementById('task-input');
+    const name=inp.value.trim();
+    if(!name) return;
+    const task={
+      id:'local-'+Date.now(), name, priority:currentPri,
+      category:document.getElementById('cat-sel').value,
+      deadline:document.getElementById('date-inp').value,
+      done:false, syncStatus:cfg.token?'pending':'local', notionId:null
+    };
+    tasks.unshift(task); saveTasks(); render();
+    inp.value=''; document.getElementById('date-inp').value='';
+
+    if(!cfg.token||!cfg.db){ toast('ローカルに追加（Notion未接続）'); return; }
+    try {
+      const priLabel=task.priority==='🔴'?'🔴 今日〜明日':task.priority==='🟡'?'🟡 今週中':'🟢 今月中';
+      const props={
+        'タスク名':{title:[{text:{content:task.name}}]},
+        '優先度':{select:{name:priLabel}}
+      };
+      if(task.deadline) props['期限']={date:{start:task.deadline}};
+      const res=await notionFetch('/pages','POST',{parent:{database_id:fmtDbId(cfg.db)},properties:props});
+      if(res.id){
+        task.notionId=res.id; task.id=res.id; task.syncStatus='synced';
+        saveTasks(); render(); toast('✓ Notionに追加しました','ok');
+      } else {
+        task.syncStatus='error'; saveTasks(); render();
+        toast('追加エラー: '+(res.message||''),'err');
+      }
+    } catch(e){ task.syncStatus='error'; saveTasks(); render(); toast('エラー: '+e.message,'err'); }
+  }
+
+  async function toggleDone(id) {
+    const t=tasks.find(t=>t.id===id); if(!t) return;
+    t.done=!t.done; saveTasks(); render();
+    if(t.done&&t.notionId&&cfg.token){
+      try {
+        await notionFetch('/pages/'+t.notionId,'PATCH',{properties:{'ステータス':{status:{name:'完了'}}}});
+        toast('✓ Notionで完了にしました','ok');
+      } catch(e){ toast('完了の同期に失敗しました','err'); }
+    }
+  }
+
+  function deleteTask(id){ tasks=tasks.filter(t=>t.id!==id); saveTasks(); render(); }
+
+  function render() {
+    const list=document.getElementById('task-list');
+    let filtered=tasks.filter(t=>{
+      if(currentFilter==='done') return t.done;
+      if(currentFilter==='active') return !t.done;
+      return !t.done&&t.priority===currentFilter;
+    });
+    document.getElementById('count-label').textContent=filtered.length+'件';
+    if(!filtered.length){ list.innerHTML='<div class="empty">タスクなし</div>'; return; }
+    list.innerHTML=filtered.map(t=>{
+      const bc=t.priority==='🔴'?'b-red':t.priority==='🟡'?'b-amber':'b-green';
+      const bl=t.priority==='🔴'?'🔴 今日〜明日':t.priority==='🟡'?'🟡 今週中':'🟢 今月中';
+      const sync=t.syncStatus==='pending'?'<span class="badge" style="background:#fef9c3;color:#854d0e;font-size:10px">同期中…</span>'
+        :t.syncStatus==='error'?'<span class="badge" style="background:#fef2f2;color:#dc2626;font-size:10px">同期エラー</span>'
+        :t.syncStatus==='local'?'<span class="badge b-gray" style="font-size:10px">ローカル</span>':'';
+      const date=t.deadline?`<span class="badge b-gray">${t.deadline}</span>`:'';
+      const cat=t.category?`<span class="badge b-gray">${esc(t.category)}</span>`:'';
+      return `<div class="task-item${t.done?' done':''}" id="ti-${t.id}">
+        <button class="check-btn" onclick="toggleDone('${t.id}')">✓</button>
+        <div class="task-body">
+          <div class="task-name">${esc(t.name)}</div>
+          <div class="task-meta"><span class="badge ${bc}">${bl}</span>${cat}${date}${sync}</div>
+        </div>
+        <button class="task-del" onclick="deleteTask('${t.id}')">×</button>
+      </div>`;
+    }).join('');
+  }
+
+  function esc(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function setPri(p){
+    currentPri=p;
+    document.getElementById('p-red').className='pri-btn'+(p==='🔴'?' sel-red':'');
+    document.getElementById('p-amber').className='pri-btn'+(p==='🟡'?' sel-amber':'');
+    document.getElementById('p-green').className='pri-btn'+(p==='🟢'?' sel-green':'');
+  }
+  function setFilter(f,btn){ currentFilter=f; document.querySelectorAll('.fil-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); render(); }
+  function toggleSettings(){ document.getElementById('settings-wrap').classList.toggle('open'); }
+  function buildCats(){
+    const sel=document.getElementById('cat-sel'),cur=sel.value;
+    sel.innerHTML='<option value="">カテゴリ</option>';
+    (cfg.cats||[]).forEach(c=>{ const o=document.createElement('option'); o.value=c; o.textContent=c; sel.appendChild(o); });
+    sel.value=cur;
+  }
+  function setStatus(s){
+    const dot=document.getElementById('dot'),txt=document.getElementById('status-text');
+    if(s==='ok'){dot.className='dot ok';txt.textContent='Notion接続中';}
+    else if(s==='err'){dot.className='dot err';txt.textContent='接続エラー';}
+    else{dot.className='dot';txt.textContent='未接続';}
+  }
+  function setMsg(msg,type){ const el=document.getElementById('cfg-msg'); el.textContent=msg; el.className='cfg-msg'+(type?' '+type:''); }
+  function toast(msg,type=''){ const t=document.getElementById('toast'); t.textContent=msg; t.className='toast show'+(type?' '+type:''); setTimeout(()=>t.className='toast',2500); }
+
+  document.getElementById('task-input').addEventListener('keydown',e=>{ if(e.key==='Enter') addTask(); });
+
+  loadCfg(); loadTasks(); render(); setPri('🔴');
+  if(cfg.token&&cfg.db){ setStatus('ok'); fetchTasks(); }
+  else { document.getElementById('settings-wrap').classList.add('open'); }
+  setInterval(()=>{ if(cfg.token&&cfg.db) fetchTasks(); },60000);
+</script>
+</body>
+</html>
